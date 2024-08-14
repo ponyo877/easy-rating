@@ -16,7 +16,8 @@ type Repository interface {
 }
 
 type Usecase interface {
-	GetPlayersRate(p1ID, p2ID string) (int, int, error)
+	FetchPlayerRate(pID string) (int, error)
+	GetRanking(offset int) ([]*domain.Player, error)
 	IsExistRepost(matchID string) (bool, error)
 	SaveReport(matchID, pID string, result domain.Result) error
 	CheckReportWithPID(matchID, pID string, result domain.Result) (string, bool, error)

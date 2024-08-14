@@ -15,8 +15,24 @@ import (
 )
 
 var (
-	port = flag.Int("port", 8000, "The server port")
+	port = flag.Int("port", 8001, "The server port")
 )
+
+func main() {
+	flag.Parse()
+	redisURL := os.Getenv("REDIS_URL")
+	redisToken := os.Getenv("REDIS_TOKEN")
+	solt := os.Getenv("SOLT")
+
+	opt, _ := redis.ParseURL(fmt.Sprintf("rediss://default:%s@%s:6379", redisToken, redisURL))
+	repository := repository.NewRatingRepository(redis.NewClient(opt))
+	service := usecase.NewRatingService(repository)
+	http.HandleFunc("/start", startHandler(service))
+	http.HandleFunc("/finish", finishHandler(service, solt))
+	http.HandleFunc("/ranking", rankingHandler(service))
+	log.Printf("Server listening on port %d", *port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+}
 
 type Request struct {
 	MatchID  string `json:"match_id"`
@@ -31,26 +47,16 @@ type Player struct {
 	Rate int    `json:"rate"`
 }
 
-type Response struct {
+type StartResponse struct {
 	Player1 Player `json:"player1"`
 	Player2 Player `json:"player2"`
 }
 
-func main() {
-	flag.Parse()
-	redisURL := os.Getenv("REDIS_URL")
-	redisToken := os.Getenv("REDIS_TOKEN")
-	solt := os.Getenv("SOLT")
-
-	opt, _ := redis.ParseURL(fmt.Sprintf("rediss://default:%s@%s:6379", redisToken, redisURL))
-	repository := repository.NewRatingRepository(redis.NewClient(opt))
-	service := usecase.NewRatingService(repository)
-	http.HandleFunc("/start", startHandler(service, solt))
-	http.HandleFunc("/finish", finishHandler(service, solt))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+type RangkingResponse struct {
+	Players []Player `json:"players"`
 }
 
-func startHandler(service usecase.Usecase, solt string) func(w http.ResponseWriter, r *http.Request) {
+func startHandler(service usecase.Usecase) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -58,12 +64,17 @@ func startHandler(service usecase.Usecase, solt string) func(w http.ResponseWrit
 		}
 		v := r.URL.Query()
 		p1ID, p2ID := v.Get("p1"), v.Get("p2")
-		p1Rate, p2Rate, err := service.GetPlayersRate(p1ID, p2ID)
+		p1Rate, err := service.FetchPlayerRate(p1ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		res := Response{
+		p2Rate, err := service.FetchPlayerRate(p2ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		res := StartResponse{
 			Player1: Player{
 				ID:   p1ID,
 				Rate: p1Rate,
@@ -125,14 +136,37 @@ func finishHandler(service usecase.Usecase, solt string) func(w http.ResponseWri
 		}
 		var p1ID, p2ID string
 		if req.Number == 1 {
-			p1ID, p2ID = pID, req.PlayerID
-		} else {
 			p1ID, p2ID = req.PlayerID, pID
+		} else {
+			p1ID, p2ID = pID, req.PlayerID
 		}
 		if err := service.UpdateRate(p1ID, p2ID, result); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func rankingHandler(service usecase.Usecase) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		offset := 20
+		rankedPlayers, err := service.GetRanking(offset)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		var res RangkingResponse
+		for _, player := range rankedPlayers {
+			res.Players = append(res.Players, Player{
+				ID:   player.ID(),
+				Rate: player.Rate(),
+			})
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			log.Println(err)
+		}
 	}
 }

@@ -14,16 +14,26 @@ func NewRatingService(repo Repository) Usecase {
 	return &RatingService{repo}
 }
 
-func (u *RatingService) GetRate(p1ID, p2ID string) (int, int, error) {
-	p1Rate, err := u.repo.GetRate(p1ID)
-	if err != nil {
-		return -1, -1, err
+func (u *RatingService) FetchPlayerRate(pID string) (int, error) {
+	rate, err := u.repo.GetRate(pID)
+	if err != nil && !errors.Is(err, domain.ErrNotFound) {
+		return 0, err
 	}
-	p2Rate, err := u.repo.GetRate(p2ID)
-	if err != nil {
-		return -1, -1, err
+	if !errors.Is(err, domain.ErrNotFound) {
+		return rate, nil
 	}
-	return p1Rate, p2Rate, nil
+	initRate := 1500
+	if err := u.repo.StoreRate(pID, initRate); err != nil {
+		return 0, err
+	}
+	if err := u.repo.SetSortedRate(pID, initRate); err != nil {
+		return 0, err
+	}
+	return initRate, nil
+}
+
+func (u *RatingService) GetRanking(offset int) ([]*domain.Player, error) {
+	return u.repo.GetRanking(offset)
 }
 
 func (u *RatingService) IsExistRepost(matchID string) (bool, error) {
@@ -49,7 +59,7 @@ func (u *RatingService) CheckReportWithPID(matchID, pID string, result domain.Re
 	if err != nil {
 		return "", false, err
 	}
-	if setPID != pID {
+	if setPID == pID {
 		return "", false, domain.ErrInvalidPlayer
 	}
 	setResult, err := u.repo.GetResultByMatch(matchID)
