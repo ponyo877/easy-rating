@@ -42,7 +42,14 @@ func main() {
 
 func startHandler(service usecase.Usecase, solt string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO not implemented
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		v := r.URL.Query()
+		p1ID, p2ID := v.Get("p1"), v.Get("p2")
+		service.GetPlayersRate(p1ID, p2ID)
+		w.WriteHeader(http.StatusOK)
 	}
 }
 

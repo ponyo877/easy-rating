@@ -14,6 +14,18 @@ func NewRatingService(repo Repository) Usecase {
 	return &RatingService{repo}
 }
 
+func (u *RatingService) GetRate(p1ID, p2ID string) (int, int, error) {
+	p1Rate, err := u.repo.GetRate(p1ID)
+	if err != nil {
+		return -1, -1, err
+	}
+	p2Rate, err := u.repo.GetRate(p2ID)
+	if err != nil {
+		return -1, -1, err
+	}
+	return p1Rate, p2Rate, nil
+}
+
 func (u *RatingService) IsExistRepost(matchID string) (bool, error) {
 	_, err := u.repo.GetPlayerByMatch(matchID)
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
