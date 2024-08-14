@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/ponyo877/easy-rating/domain"
 	"github.com/ponyo877/easy-rating/repository"
@@ -58,6 +59,7 @@ type RangkingResponse struct {
 
 func startHandler(service usecase.Usecase) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -93,7 +95,16 @@ func startHandler(service usecase.Usecase) func(w http.ResponseWriter, r *http.R
 }
 
 func finishHandler(service usecase.Usecase, solt string) func(w http.ResponseWriter, r *http.Request) {
+	var mu sync.Mutex
 	return func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -150,6 +161,7 @@ func finishHandler(service usecase.Usecase, solt string) func(w http.ResponseWri
 
 func rankingHandler(service usecase.Usecase) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		offset := 20
 		rankedPlayers, err := service.GetRanking(offset)
 		if err != nil {
