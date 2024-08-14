@@ -26,6 +26,16 @@ type Request struct {
 	Result   string `json:"result"`
 }
 
+type Player struct {
+	ID   string `json:"id"`
+	Rate int    `json:"rate"`
+}
+
+type Response struct {
+	Player1 Player `json:"player1"`
+	Player2 Player `json:"player2"`
+}
+
 func main() {
 	flag.Parse()
 	redisURL := os.Getenv("REDIS_URL")
@@ -48,8 +58,26 @@ func startHandler(service usecase.Usecase, solt string) func(w http.ResponseWrit
 		}
 		v := r.URL.Query()
 		p1ID, p2ID := v.Get("p1"), v.Get("p2")
-		service.GetPlayersRate(p1ID, p2ID)
+		p1Rate, p2Rate, err := service.GetPlayersRate(p1ID, p2ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		res := Response{
+			Player1: Player{
+				ID:   p1ID,
+				Rate: p1Rate,
+			},
+			Player2: Player{
+				ID:   p2ID,
+				Rate: p2Rate,
+			},
+		}
 		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if err := json.NewEncoder(w).Encode(res); err != nil {
+			log.Println(err)
+		}
 	}
 }
 
