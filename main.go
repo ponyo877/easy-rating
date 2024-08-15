@@ -86,8 +86,8 @@ func startHandler(service usecase.Usecase) func(w http.ResponseWriter, r *http.R
 				Rate: p2Rate,
 			},
 		}
-		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(res); err != nil {
 			log.Println(err)
 		}
@@ -175,8 +175,8 @@ func rankingHandler(service usecase.Usecase) func(w http.ResponseWriter, r *http
 				Rate: player.Rate(),
 			})
 		}
-		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(res); err != nil {
 			log.Println(err)
 		}
