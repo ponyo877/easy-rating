@@ -7,6 +7,7 @@
 *.dll
 *.so
 *.dylib
+easy-rating
 
 # Test binary, built with `go test -c`
 *.test

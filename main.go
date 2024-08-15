@@ -28,9 +28,9 @@ func main() {
 	opt, _ := redis.ParseURL(fmt.Sprintf("rediss://default:%s@%s:6379", redisToken, redisURL))
 	repository := repository.NewRatingRepository(redis.NewClient(opt))
 	service := usecase.NewRatingService(repository)
-	http.HandleFunc("/start", startHandler(service))
-	http.HandleFunc("/finish", finishHandler(service, solt))
-	http.HandleFunc("/ranking", rankingHandler(service))
+	http.HandleFunc("/rating/start", startHandler(service))
+	http.HandleFunc("/rating/finish", finishHandler(service, solt))
+	http.HandleFunc("/rating/ranking", rankingHandler(service))
 	log.Printf("Server listening on port %d", *port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
